@@ -3,7 +3,15 @@ import {
   View,Text,TextInput,Button,FlatList,StyleSheet,Alert,TouchableOpacity,Switch
 } from 'react-native';
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as Notifications from 'expo-notifications';
 
+Notifications.setNotificationHandler({
+  handleNotification:async()=>({
+    shouldShowAlert:true,
+    shouldPlaySound:true,
+    shouldSetBadge:false,
+  }),
+});
 
 export default function App() {
   const[events,setEvents]=useState([]);
@@ -67,8 +75,41 @@ const loadEvents= async()=>{
     }else{
       setEvents([...events, newEvent]);
     }
+
+    if (reminder && !editingId) {
+      scheduleNotification(title,date,time);
+    }
     resetForm();
     setCurrentScreen('HOME');
+  };
+
+  const scheduleNotification = async(
+    eventTitle,dateStr,timeStr
+  )=>{
+    try{
+      const {status}=await Notifications.requestPermissionsAsync();
+      if (status !=='granted') {
+        Alert.alert('Permission required','Please enable notification for reminders.');
+        return;
+      }
+      const triggerDate=new Date(`${dateStr}T${timeStr}:00`);
+      if (isNaN(triggerDate.getTime())||
+    triggerDate<= new Date()) {
+        Alert.alert('Invalid Date','Reminder must be set for a future date.');
+        return;
+      }
+      await
+      Notifications.scheduleNotificationAsync({
+        content:{
+          title:'Event Reminder!',
+          body:`Dont't forget: ${eventTitle}`,
+        },trigger:{date:triggerDate},
+      });
+      Alert.alert('Reminder set',`Notification schedule for ${dateStr} at${timeStr}`);
+    }catch (e){
+      console.log("Notification error:",e);
+      
+    }
   };
 
   const handleDeleteEvent =(id)=>{
